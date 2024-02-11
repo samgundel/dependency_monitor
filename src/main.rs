@@ -21,6 +21,14 @@ impl DependencyManager {
        let mut monitor = PullRequestMonitor::new(pr);
        self.pull_requests.insert(source, monitor);
     }
+
+    fn set_build_status(&mut self, pr: u32, status: bool) {
+        match self.pull_requests.get_mut(&pr) {
+            Some(found_pr) => found_pr.monitored_pr.set_build_status(status, &found_pr),
+            None => println!("No PR Found")
+        }
+    }
+
     fn new() -> DependencyManager {
         DependencyManager {
             pull_requests: HashMap::new()
@@ -40,6 +48,19 @@ struct PullRequestMonitor {
 
 impl Monitor for PullRequestMonitor {
     fn notify_status_change(&self) {
+        println!("Status Changed: {:?}", self.monitored_pr);
+    }
+}
+
+impl<'a> Monitor for &'a PullRequestMonitor {
+    fn notify_status_change(&self) {
+        println!("Status Changed: {:?}", self.monitored_pr);
+    }
+}
+
+impl<'a> Monitor for &'a mut PullRequestMonitor {
+    fn notify_status_change(&self) {
+        println!("Status Changed: {:?}", self.monitored_pr);
     }
 }
 
@@ -69,11 +90,14 @@ impl PullRequest {
         }
     }
 
-    fn set_build_status(&mut self, build_status: bool, monitor: &mut dyn Monitor) {
-        self.build_status = build_status;
+    fn set_build_status(&mut self, build_status: bool, monitor: &dyn Monitor) {
+        if build_status != self.build_status {
+            self.build_status = build_status;
+            monitor.notify_status_change();
+        }
     }
 
-    fn add_dependency(&mut self, dependency: u32, monitor: &mut dyn Monitor) {
+    fn add_dependency(&mut self, dependency: u32, monitor: &dyn Monitor) {
         self.dependencies.push(dependency);
     }
 }
